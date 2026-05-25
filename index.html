@@ -3808,7 +3808,11 @@ let DB = {invoices:[], clients:[], loaded:false, cobranza:[], cobranzaLoaded:fal
         if(savedCli){
           const clis=decompress(savedCli);
           if(clis&&clis.length>0){ DB.clients=clis; }
-          else { const mF={};invs.forEach(i=>{const k=i.cid||i.nombre;if(!mF[k])mF[k]={id:i.cid,nombre:i.nombre,total:0,facturas:0,ejecutivo:i.ejecutivo,tecnico:i.tecnico,departamento:i.dept,localidad:i.loc,categoria:i.cat,tipo:i.tipoCli,rubro:i.rubro,pago:i.pago,servicio:i.servicio,notas:'',isNew:false,deuda:0,maxAtraso:0};mF[k].total+=i.monto;mF[k].facturas++;});DB.clients=Object.values(mF).sort((a,b)=>b.total-a.total); }
+          else {
+            // sedel_v2_cli está corrompido (vacío) — limpiar para que GAS no lo reusar
+            localStorage.removeItem('sedel_v2_cli');
+            const mF={};invs.forEach(i=>{const k=i.cid||i.nombre;if(!mF[k])mF[k]={id:i.cid,nombre:i.nombre,total:0,facturas:0,ejecutivo:i.ejecutivo,tecnico:i.tecnico,departamento:i.dept,localidad:i.loc,categoria:i.cat,tipo:i.tipoCli,rubro:i.rubro,pago:i.pago,servicio:i.servicio,notas:'',isNew:false,deuda:0,maxAtraso:0};mF[k].total+=i.monto;mF[k].facturas++;});DB.clients=Object.values(mF).sort((a,b)=>b.total-a.total);
+          }
         } else {
           const mF={};invs.forEach(i=>{const k=i.cid||i.nombre;if(!mF[k])mF[k]={id:i.cid,nombre:i.nombre,total:0,facturas:0,ejecutivo:i.ejecutivo,tecnico:i.tecnico,departamento:i.dept,localidad:i.loc,categoria:i.cat,tipo:i.tipoCli,rubro:i.rubro,pago:i.pago,servicio:i.servicio,notas:'',isNew:false,deuda:0,maxAtraso:0};mF[k].total+=i.monto;mF[k].facturas++;});DB.clients=Object.values(mF).sort((a,b)=>b.total-a.total);
         }
@@ -3819,6 +3823,11 @@ let DB = {invoices:[], clients:[], loaded:false, cobranza:[], cobranzaLoaded:fal
           const el=document.getElementById('fac-status-detail');
           if(el) el.innerHTML='<strong>'+invs.length+' facturas guardadas</strong> · '+DB.clients.length+' clientes · <strong>$'+Math.round(totalAcum).toLocaleString('es-UY')+'</strong><br><span style="font-size:11px;color:var(--text3)">'+meses+' mes'+(meses!==1?'es':'')+' en historial</span><br><span style="font-size:11px;color:#15803d;font-weight:600">💾 Cargado automáticamente</span>';
         });
+      } else {
+        // sedel_v2_fac está corrompido — limpiar para que la próxima carga use datos embebidos
+        localStorage.removeItem('sedel_v2_fac');
+        localStorage.removeItem('sedel_v2_cli');
+        console.warn('[CRM] localStorage corrompido detectado y limpiado automáticamente');
       }
     }
     const savedCob=localStorage.getItem('sedel_v2_cob');
