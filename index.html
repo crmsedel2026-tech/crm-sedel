@@ -5117,8 +5117,17 @@ function loadFichaInteractive(clientId){
 }
 function renderEjecutivos(){
   if(!DB.loaded)return;
+  // Solo mostrar ejecutivos activos definidos en AUTH_USERS
+  const EJEC_ACTIVOS = AUTH_USERS.filter(u=>u.role==='ejecutivo').map(u=>u.key);
   const em={};
-  DB.invoices.forEach(i=>{if(i.ejecutivo&&i.ejecutivo!=='N/A'){if(!em[i.ejecutivo])em[i.ejecutivo]={r:0,c:new Set(),n:0};em[i.ejecutivo].r+=i.monto;em[i.ejecutivo].c.add(i.cid);em[i.ejecutivo].n++;}});
+  DB.invoices.forEach(i=>{
+    if(i.ejecutivo&&i.ejecutivo!=='N/A'&&EJEC_ACTIVOS.includes(i.ejecutivo)){
+      if(!em[i.ejecutivo])em[i.ejecutivo]={r:0,c:new Set(),n:0};
+      em[i.ejecutivo].r+=i.monto;em[i.ejecutivo].c.add(i.cid);em[i.ejecutivo].n++;
+    }
+  });
+  // Asegurar que los 3 ejecutivos aparezcan aunque no tengan facturas aún
+  EJEC_ACTIVOS.forEach(k=>{ if(!em[k]) em[k]={r:0,c:new Set(),n:0}; });
   const ea=Object.entries(em).sort((a,b)=>b[1].r-a[1].r);
   const col=['#2563eb','#059669','#d97706','#7c3aed'];
   const bg=['#eff6ff','#ecfdf5','#fffbeb','#f5f3ff'];
