@@ -17732,6 +17732,12 @@ function saveOSAdvance(){
   r.estado = stage;
 
   saveOS_Tracking();
+
+  // ── Auto-crear entrada en Pipeline cuando llega a Presupuesto Enviado ──
+  if(stage === 'presupuesto_enviado'){
+    osAutoCrearPipeline(r, etapaData);
+  }
+
   closeOSAdvance();
   renderOSTab();
 
@@ -20103,6 +20109,62 @@ async function adminRefreshLive() {
   } catch(e) {
     document.getElementById('admin-last-sync').textContent = '⚠️ Sin conexión';
     if (typeof toast==='function') toast('⚠️ No se pudo conectar al servidor GAS');
+  }
+}
+
+function osAutoCrearPipeline(r, etapaPresup){
+  try {
+    // Buscar cliente en DB por nombre
+    const clienteNombre = (r.cliente||'').toLowerCase().trim();
+    const cliente = DB.clients.find(c =>
+      (c.nombre||'').toLowerCase().trim() === clienteNombre ||
+      (c.razonSocial||'').toLowerCase().trim() === clienteNombre
+    );
+    if(!cliente){ toast('⚠️ OS en Pipeline: cliente no encontrado en la base'); return; }
+
+    const lista = getPresupuestos(cliente.id);
+
+    // Verificar si ya existe un pipeline vinculado a esta OS
+    const yaExiste = lista.find(p => p.osId === r.id);
+    if(yaExiste){
+      // Actualizar monto y etapa presupuesto
+      yaExiste.monto = parseFloat(etapaPresup.monto)||yaExiste.monto||0;
+      yaExiste.etapas.presupuesto = { dt: new Date().toISOString().slice(0,16), txt: 'Enviado vía '+( etapaPresup.via||'') };
+      yaExiste.updatedAt = new Date().toISOString();
+      savePresupuestos(cliente.id, lista);
+      toast('🔄 Pipeline actualizado: '+cliente.nombre);
+      return;
+    }
+
+    // Construir etapas del pipeline según etapas completadas en la OS
+    const etapasPipe = {};
+    const now = new Date().toISOString().slice(0,16);
+    etapasPipe.solicitud    = { dt: (r.etapas?.os_creada?.fecha||now)+'T00:00', txt: 'OS #'+r.nrOS };
+    if(r.etapas?.diagnostico_enviado?.fecha)
+      etapasPipe.diagnostico = { dt: r.etapas.diagnostico_enviado.fecha+'T00:00', txt: r.etapas.diagnostico_enviado.productos||'' };
+    if(r.etapas?.analisis_costos?.fecha)
+      etapasPipe.costo = { dt: r.etapas.analisis_costos.fecha+'T00:00', txt: r.etapas.analisis_costos.costo ? '$'+r.etapas.analisis_costos.costo : '' };
+    etapasPipe.presupuesto = { dt: now, txt: 'Enviado vía '+(etapaPresup.via||'') };
+
+    const nuevoPipe = {
+      id:         'pipe_os_'+r.id,
+      osId:       r.id,
+      numero:     'OS-'+r.nrOS,
+      servicios:  r.descripcion || r.tipo || 'Servicio SEDEL',
+      monto:      parseFloat(etapaPresup.monto)||0,
+      estado:     'en_proceso',
+      obs:        'Generado automáticamente desde OS #'+r.nrOS,
+      etapas:     etapasPipe,
+      tiempoTotalMs: null,
+      createdAt:  new Date().toISOString(),
+      updatedAt:  new Date().toISOString()
+    };
+
+    lista.push(nuevoPipe);
+    savePresupuestos(cliente.id, lista);
+    toast('✅ Presupuesto agregado al Pipeline: '+cliente.nombre, 3500);
+  } catch(e){
+    console.warn('osAutoCrearPipeline error:', e);
   }
 }
 
