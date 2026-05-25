@@ -20018,10 +20018,10 @@ function copiarRutaPublicar() {
     el.select();
     document.execCommand('copy');
     document.body.removeChild(el);
-    showToast('📋 Ruta copiada al portapapeles');
+    toast('📋 Ruta copiada al portapapeles');
   };
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(ruta).then(() => showToast('📋 Ruta copiada al portapapeles')).catch(fallback);
+    navigator.clipboard.writeText(ruta).then(() => toast('📋 Ruta copiada al portapapeles')).catch(fallback);
   } else {
     fallback();
   }
