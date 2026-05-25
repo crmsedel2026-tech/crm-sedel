@@ -3736,21 +3736,27 @@ let DB = {invoices:[], clients:[], loaded:false, cobranza:[], cobranzaLoaded:fal
   DB.invoices = DEMO_INVOICES;
   DB.loaded = true;
 
-  // Limpiar presupuestos de muestra si existen en localStorage
-  (function limpiarDemoPresup(){
-    const DEMO_NRS = ['PRES-2026-001','PRES-2026-002','PRES-2026-003','PRES-2026-004','PRES-2026-005','PRES-2026-006','PRES-2026-007','PRES-2026-008'];
-    for(let i=0; i<localStorage.length; i++){
-      const k = localStorage.key(i);
-      if(k && k.startsWith('sedel_presup_')){
-        try{
-          let list = JSON.parse(localStorage.getItem(k)||'[]');
-          const antes = list.length;
-          list = list.filter(p => !DEMO_NRS.includes(p.numero));
-          if(list.length !== antes) localStorage.setItem(k, JSON.stringify(list));
-        }catch(e){}
+  // Presupuestos de ejemplo
+  const now = Date.now();
+  const day = 86400000;
+  function addPresup(cid, numero, estado, etapas, monto, servicio){
+    const key = 'sedel_presup_'+cid;
+    try{
+      let list = JSON.parse(localStorage.getItem(key)||'[]');
+      if(!list.find(p=>p.numero===numero)){
+        list.push({id:'p'+cid+numero,numero,estado,etapas,monto,servicio,descripcion:'Servicio de control de plagas integral',notas:'',createdAt:new Date(now-30*day).toISOString(),updatedAt:new Date(now-5*day).toISOString()});
+        localStorage.setItem(key, JSON.stringify(list));
       }
-    }
-  })();
+    }catch(e){}
+  }
+  addPresup('32','PRES-2026-001','aprobado',{solicitud:true,diagnostico:true,costo:true,presupuesto:true},85000,'Desinsectación mensual');
+  addPresup('3297','PRES-2026-002','en_proceso',{solicitud:true,diagnostico:true,costo:false,presupuesto:false},120000,'Control de roedores');
+  addPresup('4065','PRES-2026-003','aprobado',{solicitud:true,diagnostico:true,costo:true,presupuesto:true},67000,'Desratización trimestral');
+  addPresup('128','PRES-2026-004','en_espera',{solicitud:true,diagnostico:false,costo:false,presupuesto:false},95000,'Tratamiento de fumigación');
+  addPresup('229','PRES-2026-005','rechazado',{solicitud:true,diagnostico:true,costo:true,presupuesto:true},45000,'Control plagas interior');
+  addPresup('208','PRES-2026-006','en_proceso',{solicitud:true,diagnostico:true,costo:false,presupuesto:false},78000,'Desinsectación área frigorífica');
+  addPresup('191','PRES-2026-007','aprobado',{solicitud:true,diagnostico:true,costo:true,presupuesto:true},55000,'Control mensual integrado');
+  addPresup('5158','PRES-2026-008','en_proceso',{solicitud:true,diagnostico:false,costo:false,presupuesto:false},110000,'Tratamiento rural extensivo');
 
   // Comentarios y eventos de ejemplo en CRM_STORE
   function addDemo(cid, comments, events){
