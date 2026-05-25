@@ -16219,9 +16219,9 @@ async function gsPullAll(){
         const contratos = (() =>{ try{ return JSON.parse(localStorage.getItem('sedel_contratos')||'[]'); }catch{ return null; } })();
         const tickets   = (() =>{ try{ return JSON.parse(localStorage.getItem('SEDEL_TICKETS')||'[]'); }catch{ return null; } })();
 
-        if(cli) { DB.clients = cli; DB._fullClients = cli; }
-        if(fac) { DB.invoices = fac; DB.loaded = true; }
-        if(cob) { DB.cobranza = cob; DB.cobranzaLoaded = true; }
+        if(cli && cli.length > 0) { DB.clients = cli; DB._fullClients = cli; }
+        if(fac && fac.length > 0) { DB.invoices = fac; DB.loaded = true; }
+        if(cob && cob.length > 0) { DB.cobranza = cob; DB.cobranzaLoaded = true; }
         if(contratos) { try{ if(typeof contratosData!=='undefined') window.contratosData=contratos; }catch{} }
         if(tickets)   { try{ if(typeof ticketsData!=='undefined')   window.ticketsData=tickets;   }catch{} }
 
