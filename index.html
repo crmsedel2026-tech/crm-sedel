@@ -3803,6 +3803,9 @@ let DB = {invoices:[], clients:[], loaded:false, cobranza:[], cobranzaLoaded:fal
           const mF={};invs.forEach(i=>{const k=i.cid||i.nombre;if(!mF[k])mF[k]={id:i.cid,nombre:i.nombre,total:0,facturas:0,ejecutivo:i.ejecutivo,tecnico:i.tecnico,departamento:i.dept,localidad:i.loc,categoria:i.cat,tipo:i.tipoCli,rubro:i.rubro,pago:i.pago,servicio:i.servicio,notas:'',isNew:false,deuda:0,maxAtraso:0};mF[k].total+=i.monto;mF[k].facturas++;});DB.clients=Object.values(mF).sort((a,b)=>b.total-a.total);
         }
         DB.loaded=true;
+        // Actualizar _fullClients para que el filtro de ejecutivo use datos reales
+        DB._fullClients  = DB.clients;
+        DB._fullInvoices = DB.invoices;
         const meses=new Set(invs.map(i=>i.periodo||i.fecha.slice(0,7))).size;
         const totalAcum=invs.reduce((s,i)=>s+i.monto,0);
         document.addEventListener('DOMContentLoaded',()=>{
@@ -3872,6 +3875,11 @@ function processCompact(invArr, cliArr){
   // Si ya cargaron datos reales desde localStorage, no sobreescribir con demo data
   if(DB.invoicesSource==='localStorage'){
     DB.loaded=true;
+    // Asegurar _fullClients apunta a datos reales (por si ejecutivo lo usó antes)
+    if(DB.clients && DB.clients.length && (!DB._fullClients || DB.clients.length > (DB._fullClients||[]).length)){
+      DB._fullClients  = DB.clients;
+      DB._fullInvoices = DB.invoices;
+    }
     renderDashboard();
     setupClientFilters();
     return;
@@ -3896,6 +3904,9 @@ function processCompact(invArr, cliArr){
   manualClients.forEach(c=>{if(!DB.clients.find(x=>x.id===c.id))DB.clients.push(c);});
   DB.loaded=true;
   DB.invoicesSource='compact';
+  // Actualizar _fullClients con datos reales para que el filtro de ejecutivo funcione correctamente
+  DB._fullClients  = DB.clients;
+  DB._fullInvoices = DB.invoices;
   document.getElementById('db-status').textContent=DB.clients.length+' clientes · '+DB.invoices.length+' facturas';
   document.getElementById('db-badge').textContent='⚡ '+DB.invoices.length+' facturas';
   renderDashboard();
@@ -19669,7 +19680,8 @@ function _wrapGoTabForFilter(userObj){
 function _filterForEjecutivo(userObj){
   if(!userObj||userObj.role!=='ejecutivo') return;
   if(typeof DB==='undefined') return;
-  if(!DB._fullClients && DB.clients && DB.clients.length){
+  // Capturar datos completos; refrescar si llegaron más datos desde la última vez
+  if(DB.clients && DB.clients.length && (!DB._fullClients || DB.clients.length > DB._fullClients.length)){
     DB._fullClients  = [...DB.clients];
     DB._fullInvoices = [...(DB.invoices||[])];
   }
