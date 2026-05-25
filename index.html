@@ -15400,7 +15400,7 @@ let cotLineas=[],cotClienteId=null; // compat stubs — ya no se usan
     <div style="background:#f0fdf4;border-radius:10px;padding:12px 16px;margin-bottom:18px;border:1px solid #bbf7d0">
       <p style="font-size:12px;color:#15803d;margin:0">🔒 <strong>Los datos nunca se pierden.</strong> Clientes, facturas y OS son independientes del código del CRM.</p>
     </div>
-    <button onclick="navigator.clipboard.writeText('C:\\\\crm-sedel\\\\PUBLICAR_ACTUALIZACION.bat').then(()=>{ showToast('Ruta copiada al portapapeles'); })" style="width:100%;padding:11px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;color:#475569">📋 Copiar ruta del acceso directo</button>
+    <button onclick="copiarRutaPublicar()" style="width:100%;padding:11px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;color:#475569">📋 Copiar ruta del acceso directo</button>
   </div>
 </div>
 
@@ -20004,6 +20004,26 @@ async function adminRefreshLive() {
   } catch(e) {
     document.getElementById('admin-last-sync').textContent = '⚠️ Sin conexión';
     if (typeof toast==='function') toast('⚠️ No se pudo conectar al servidor GAS');
+  }
+}
+
+function copiarRutaPublicar() {
+  const ruta = 'C:\\crm-sedel\\PUBLICAR_ACTUALIZACION.bat';
+  const fallback = () => {
+    const el = document.createElement('textarea');
+    el.value = ruta;
+    el.style.position = 'fixed';
+    el.style.opacity  = '0';
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    showToast('📋 Ruta copiada al portapapeles');
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(ruta).then(() => showToast('📋 Ruta copiada al portapapeles')).catch(fallback);
+  } else {
+    fallback();
   }
 }
 
