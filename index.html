@@ -3993,7 +3993,22 @@ function getComparativoMes(){
 // ===== DASHBOARD =====
 function renderDashboard(){
   if(!DB.loaded) return;
-  const inv = DB.invoices;
+
+  // ── Filtrar por cartera del ejecutivo ──
+  const _cu      = window.crmCurrentUser;
+  const _isAdmin = _cu?.role === 'admin';
+  const _isEjec  = _cu?.role === 'ejecutivo';
+  const _myShort = _cu?.short || '';
+  const _myKey   = _cu?.key   || '';
+
+  const clients = _isEjec
+    ? DB.clients.filter(c => c.ejecutivo===_myShort || c.ejecutivo===_myKey)
+    : DB.clients;
+  const _cids = new Set(clients.map(c=>c.id));
+  const inv = _isEjec
+    ? DB.invoices.filter(i => _cids.has(i.cid) || i.ejecutivo===_myShort || i.ejecutivo===_myKey)
+    : DB.invoices;
+
   const total = inv.reduce((s,i)=>s+i.monto,0);
   const avg = inv.length ? total/inv.length : 0;
 
@@ -4017,7 +4032,8 @@ function renderDashboard(){
     const today = new Date();
     const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
     const meses2 = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','setiembre','octubre','noviembre','diciembre'];
-    wSub.textContent = `${dias[today.getDay()]} ${today.getDate()} de ${meses2[today.getMonth()]} de ${today.getFullYear()} · ${periodosOrdenados.length} período${periodosOrdenados.length!==1?'s':''} cargados · ${fmt(DB.clients.length)} clientes activos`;
+    const _dashSuffix = _isEjec ? ` · Mi cartera: ${fmt(clients.length)} clientes` : ` · ${fmt(clients.length)} clientes activos`;
+    wSub.textContent = `${dias[today.getDay()]} ${today.getDate()} de ${meses2[today.getMonth()]} de ${today.getFullYear()} · ${periodosOrdenados.length} período${periodosOrdenados.length!==1?'s':''} cargados${_dashSuffix}`;
   }
 
   // ── KPIs ──
@@ -4040,8 +4056,8 @@ function renderDashboard(){
     </div>
     <div class="metric-card amber">
       <div style="position:absolute;right:14px;top:50%;transform:translateY(-50%);width:56px;height:56px;opacity:.09;color:#b45309">${svgBuild}</div>
-      <div class="label">Clientes activos</div>
-      <div class="value">${fmt(DB.clients.length)}</div>
+      <div class="label">${_isEjec?'Mi cartera':'Clientes activos'}</div>
+      <div class="value">${fmt(clients.length)}</div>
       <div class="sub">${fmt(inv.length)} facturas · ${periodosOrdenados.length} período${periodosOrdenados.length!==1?'s':''}</div>
     </div>
     <div class="metric-card purple">
@@ -4080,7 +4096,7 @@ function renderDashboard(){
   });
 
   // ── Top clientes ──
-  const top10 = DB.clients.slice(0,10);
+  const top10 = clients.slice(0,10);
   const maxTop = top10[0]?.total||1;
   const topColors = ['#1e40af','#1d4ed8','#2563eb','#3b82f6','#60a5fa','#93c5fd','#bfdbfe','#dbeafe','#eff6ff','#f8fafc'];
   const topEl = document.getElementById('dash-top-clients');
@@ -4097,7 +4113,7 @@ function renderDashboard(){
       </div>
     </div>`).join('');
   const topTotalEl = document.getElementById('dash-top-total');
-  if(topTotalEl){const t10=top10.reduce((s,c)=>s+c.total,0);topTotalEl.textContent='Top 10 = '+fmtM(t10)+' ('+(total?Math.round(t10/total*100):0)+'% del total)';}
+  if(topTotalEl){const t10=top10.reduce((s,c)=>s+c.total,0);topTotalEl.textContent=(_isEjec?'Mi cartera: ':'Top 10 = ')+fmtM(t10)+' ('+(total?Math.round(t10/total*100):0)+'% del total)';}
 
   // ── Donut rubro ──
   const rm={};
@@ -19621,10 +19637,8 @@ function _renderActivityWidget(){
   const wrap=document.getElementById('dash-activity-wrap');
   const container=document.getElementById('dash-activity-log');
   if(!wrap||!container) return;
-  const role=window.crmCurrentUser?.role;
-  if(role!=='admin'){ wrap.style.display='none'; return; }
-  const entries=getRecentActivity(10);
-  wrap.style.display='block';
+  // Actividad reciente desactivada del dashboard
+  wrap.style.display='none'; return;
   if(!entries.length){ container.innerHTML='<p style="color:#94a3b8;font-size:12px">Sin actividad registrada aún.</p>'; return; }
   const labels={login:'Ingresó al CRM',logout:'Cerró sesión',os_created:'Creó OS',os_advanced:'Avanzó OS',pin_change:'Cambió PIN',client_edited:'Editó cliente'};
   const icons={login:'🔑',logout:'🚪',os_created:'📋',os_advanced:'→',pin_change:'🔒',client_edited:'✏️'};
