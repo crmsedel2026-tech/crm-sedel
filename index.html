@@ -3736,21 +3736,8 @@ let DB = {invoices:[], clients:[], loaded:false, cobranza:[], cobranzaLoaded:fal
   DB.invoices = DEMO_INVOICES;
   DB.loaded = true;
 
-  // Limpiar presupuestos de muestra si existen en localStorage
-  (function limpiarDemoPresup(){
-    const DEMO_NRS = ['PRES-2026-001','PRES-2026-002','PRES-2026-003','PRES-2026-004','PRES-2026-005','PRES-2026-006','PRES-2026-007','PRES-2026-008'];
-    for(let i=0; i<localStorage.length; i++){
-      const k = localStorage.key(i);
-      if(k && k.startsWith('sedel_presup_')){
-        try{
-          let list = JSON.parse(localStorage.getItem(k)||'[]');
-          const antes = list.length;
-          list = list.filter(p => !DEMO_NRS.includes(p.numero));
-          if(list.length !== antes) localStorage.setItem(k, JSON.stringify(list));
-        }catch(e){}
-      }
-    }
-  })();
+  const now = Date.now();
+  const day = 86400000;
 
   // Comentarios y eventos de ejemplo en CRM_STORE
   function addDemo(cid, comments, events){
@@ -19388,6 +19375,27 @@ function _enterCRM(userObj){
   try{ if(typeof checkBackupWarning  === 'function') checkBackupWarning();  }catch(e){}
   try{ if(typeof checkLocalStorageQuota === 'function') checkLocalStorageQuota(); }catch(e){}
   try{ if(typeof checkContractAlerts === 'function') checkContractAlerts(); }catch(e){}
+  // Limpiar datos de muestra del Pipeline (una sola vez por browser)
+  try{
+    if(!localStorage.getItem('SEDEL_PIPELINE_DEMO_CLEANED')){
+      let cleaned = 0;
+      for(let i=0;i<localStorage.length;i++){
+        const k = localStorage.key(i);
+        if(k && k.startsWith('sedel_presup_')){
+          try{
+            const arr = JSON.parse(localStorage.getItem(k)||'[]');
+            const filtered = arr.filter(p => !/^PRES-2026-00[1-9]$/.test(p.id||''));
+            if(filtered.length !== arr.length){
+              localStorage.setItem(k, JSON.stringify(filtered));
+              cleaned += (arr.length - filtered.length);
+            }
+          }catch(_){}
+        }
+      }
+      localStorage.setItem('SEDEL_PIPELINE_DEMO_CLEANED','1');
+      if(cleaned>0) console.log('[CRM] Pipeline demo cleanup: eliminados '+cleaned+' presupuestos de muestra');
+    }
+  }catch(e){ console.warn('Pipeline demo cleanup error:',e); }
   // Iniciar sincronización Google Sheets si está configurada
   try{ if(typeof gsStartSync === 'function') gsStartSync(); }catch(e){ console.error('gsStartSync error:',e); }
   // Auto-update: verificar si hay nueva versión en el servidor
