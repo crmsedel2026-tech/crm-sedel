@@ -1358,16 +1358,7 @@ select.filter-input{cursor:pointer}
         </div>
         <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
           <span style="font-size:10px;font-weight:600;opacity:.65;text-transform:uppercase;letter-spacing:.05em">Busca por:</span>
-          <span style="font-size:10px;background:rgba(255,255,255,.18);color:white;padding:2px 8px;border-radius:10px;font-weight:600;border:1px solid rgba(255,255,255,.25)">Nombre</span>
-          <span style="font-size:10px;background:rgba(255,255,255,.18);color:white;padding:2px 8px;border-radius:10px;font-weight:600;border:1px solid rgba(255,255,255,.25)">ID</span>
-          <span style="font-size:10px;background:rgba(255,255,255,.18);color:white;padding:2px 8px;border-radius:10px;font-weight:600;border:1px solid rgba(255,255,255,.25)">RUT</span>
-          <span style="font-size:10px;background:rgba(255,255,255,.18);color:white;padding:2px 8px;border-radius:10px;font-weight:600;border:1px solid rgba(255,255,255,.25)">Email</span>
-          <span style="font-size:10px;background:rgba(255,255,255,.18);color:white;padding:2px 8px;border-radius:10px;font-weight:600;border:1px solid rgba(255,255,255,.25)">Teléfono</span>
-          <span style="font-size:10px;background:rgba(255,255,255,.18);color:white;padding:2px 8px;border-radius:10px;font-weight:600;border:1px solid rgba(255,255,255,.25)">Dirección</span>
-          <span style="font-size:10px;background:rgba(255,255,255,.18);color:white;padding:2px 8px;border-radius:10px;font-weight:600;border:1px solid rgba(255,255,255,.25)">Rubro</span>
-          <span style="font-size:10px;background:rgba(255,255,255,.18);color:white;padding:2px 8px;border-radius:10px;font-weight:600;border:1px solid rgba(255,255,255,.25)">Departamento</span>
-          <span style="font-size:10px;background:rgba(255,255,255,.18);color:white;padding:2px 8px;border-radius:10px;font-weight:600;border:1px solid rgba(255,255,255,.25)">Nº Factura</span>
-          <span style="font-size:10px;background:rgba(255,255,255,.18);color:white;padding:2px 8px;border-radius:10px;font-weight:600;border:1px solid rgba(255,255,255,.25)">Servicio</span>
+          ${['Nombre','ID','RUT','Email','Teléfono','Dirección','Grupo','Rubro','Departamento','Nº Factura','Servicio'].map(t=>`<span style="font-size:10px;background:rgba(255,255,255,.18);color:white;padding:2px 8px;border-radius:10px;font-weight:600;border:1px solid rgba(255,255,255,.25)">${t}</span>`).join('')}
         </div>
       </div>
       <div id="search-results"></div>
@@ -3745,8 +3736,21 @@ let DB = {invoices:[], clients:[], loaded:false, cobranza:[], cobranzaLoaded:fal
   DB.invoices = DEMO_INVOICES;
   DB.loaded = true;
 
-  const now = Date.now();
-  const day = 86400000;
+  // Limpiar presupuestos de muestra si existen en localStorage
+  (function limpiarDemoPresup(){
+    const DEMO_NRS = ['PRES-2026-001','PRES-2026-002','PRES-2026-003','PRES-2026-004','PRES-2026-005','PRES-2026-006','PRES-2026-007','PRES-2026-008'];
+    for(let i=0; i<localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && k.startsWith('sedel_presup_')){
+        try{
+          let list = JSON.parse(localStorage.getItem(k)||'[]');
+          const antes = list.length;
+          list = list.filter(p => !DEMO_NRS.includes(p.numero));
+          if(list.length !== antes) localStorage.setItem(k, JSON.stringify(list));
+        }catch(e){}
+      }
+    }
+  })();
 
   // Comentarios y eventos de ejemplo en CRM_STORE
   function addDemo(cid, comments, events){
@@ -3803,9 +3807,6 @@ let DB = {invoices:[], clients:[], loaded:false, cobranza:[], cobranzaLoaded:fal
           const mF={};invs.forEach(i=>{const k=i.cid||i.nombre;if(!mF[k])mF[k]={id:i.cid,nombre:i.nombre,total:0,facturas:0,ejecutivo:i.ejecutivo,tecnico:i.tecnico,departamento:i.dept,localidad:i.loc,categoria:i.cat,tipo:i.tipoCli,rubro:i.rubro,pago:i.pago,servicio:i.servicio,notas:'',isNew:false,deuda:0,maxAtraso:0};mF[k].total+=i.monto;mF[k].facturas++;});DB.clients=Object.values(mF).sort((a,b)=>b.total-a.total);
         }
         DB.loaded=true;
-        // Actualizar _fullClients para que el filtro de ejecutivo use datos reales
-        DB._fullClients  = DB.clients;
-        DB._fullInvoices = DB.invoices;
         const meses=new Set(invs.map(i=>i.periodo||i.fecha.slice(0,7))).size;
         const totalAcum=invs.reduce((s,i)=>s+i.monto,0);
         document.addEventListener('DOMContentLoaded',()=>{
@@ -3875,11 +3876,6 @@ function processCompact(invArr, cliArr){
   // Si ya cargaron datos reales desde localStorage, no sobreescribir con demo data
   if(DB.invoicesSource==='localStorage'){
     DB.loaded=true;
-    // Asegurar _fullClients apunta a datos reales (por si ejecutivo lo usó antes)
-    if(DB.clients && DB.clients.length && (!DB._fullClients || DB.clients.length > (DB._fullClients||[]).length)){
-      DB._fullClients  = DB.clients;
-      DB._fullInvoices = DB.invoices;
-    }
     renderDashboard();
     setupClientFilters();
     return;
@@ -3904,9 +3900,6 @@ function processCompact(invArr, cliArr){
   manualClients.forEach(c=>{if(!DB.clients.find(x=>x.id===c.id))DB.clients.push(c);});
   DB.loaded=true;
   DB.invoicesSource='compact';
-  // Actualizar _fullClients con datos reales para que el filtro de ejecutivo funcione correctamente
-  DB._fullClients  = DB.clients;
-  DB._fullInvoices = DB.invoices;
   document.getElementById('db-status').textContent=DB.clients.length+' clientes · '+DB.invoices.length+' facturas';
   document.getElementById('db-badge').textContent='⚡ '+DB.invoices.length+' facturas';
   renderDashboard();
@@ -3943,7 +3936,6 @@ function goTab(name,btn,title){
   const _tabEl=document.getElementById('tab-'+name); if(_tabEl) _tabEl.classList.add('active'); else { console.warn('goTab: tab no encontrado →',name); return; }
   if(btn) btn.classList.add('active');
   document.getElementById('page-title').textContent=title||name;
-  if(name==='dashboard') renderDashboard();
   if(name==='ejecutivos') renderEjecutivos();
   if(name==='departamentos') renderDepartamentos();
   if(name==='clientes') setupClientFilters();
@@ -3960,8 +3952,6 @@ function goTab(name,btn,title){
   if(name==='contratos') renderContratos();
   if(name==='guia') renderGuia();
   if(name==='seguridad') renderSeguridad();
-  if(name==='fichas') _initFichasTab();
-  if(name==='buscar') _initBuscarTab();
   if(name==='buscarpresup') initBuscarPresupuestos();
   _runNewFeatureHooks(name);
   if(name==='alertas') renderAlertas();
@@ -3971,8 +3961,8 @@ function goTab(name,btn,title){
   if(name==='encuestas') renderEncuestas();
   if(name==='midashboard') renderMiDashboard();
   if(name==='diario') initDiario();
-  if(name==='admin-live'){ adminRefreshLive(); }
-  if(name==='soporte') renderSoporteTab();
+    if(name==='admin-live'){ adminRefreshLive(); }
+    if(name==='soporte') renderSoporteTab();
   if(name==='retencion') renderRetencion();
 }
 
@@ -4391,57 +4381,10 @@ function confirmDelete(){DB.clients=DB.clients.filter(c=>c.id!=deletingId);DB.in
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
 // ===== FICHAS =====
-
-// Inicializa la pestaña Fichas: muestra los top clientes por deuda si la búsqueda está vacía
-function _initFichasTab(){
-  const inp = document.getElementById('ficha-search');
-  const sug = document.getElementById('ficha-suggestions');
-  if(!inp || !sug) return;
-  if(inp.value.trim()){ searchFicha(); return; } // ya tiene texto → re-buscar
-  if(!DB.loaded){ sug.innerHTML='<div class="search-empty">Cargando clientes...</div>'; return; }
-  // Mostrar top 15 clientes con mayor deuda o facturación
-  const top = [...DB.clients].sort((a,b)=>(b.deuda||0)-(a.deuda||0)||(b.total||0)-(a.total||0)).slice(0,15);
-  if(!top.length){ sug.innerHTML=''; return; }
-  const colors=['#eff6ff','#ecfdf5','#fffbeb','#f5f3ff'];
-  const tcolors=['#1e40af','#065f46','#92400e','#5b21b6'];
-  sug.innerHTML=`<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:10px 4px 6px">Top clientes (por deuda)</div>`+top.map((c,i)=>{
-    const col=tcolors[i%4]; const bg=colors[i%4];
-    const deuda=(parseFloat(c.deuda)||0)>0?`<span style="font-size:11px;color:#dc2626;font-weight:700;flex-shrink:0">⚠ $${Math.round(c.deuda).toLocaleString('es-UY')}</span>`:'';
-    return `<div onclick="openFichaById('${c.id}','${c.nombre.replace(/'/g,"\\'")}');document.getElementById('ficha-suggestions').innerHTML=''"
-      style="display:flex;align-items:center;gap:10px;padding:9px 12px;margin-bottom:4px;background:white;border:1.5px solid ${col}22;border-radius:10px;cursor:pointer;transition:all .15s"
-      onmouseenter="this.style.background='${bg}'" onmouseleave="this.style.background='white'">
-      <div style="width:30px;height:30px;border-radius:8px;background:${bg};border:1.5px solid ${col}44;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:${col};flex-shrink:0">${(c.nombre||'?')[0]}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nombre}</div>
-        <div style="font-size:11px;color:var(--text3)">${c.ejecutivo||'—'} · ${c.departamento||'—'}</div>
-      </div>
-      ${deuda}
-    </div>`;
-  }).join('');
-}
-
-// Inicializa la pestaña Buscador Global con sugerencias rápidas
-function _initBuscarTab(){
-  const inp = document.getElementById('global-search');
-  if(!inp) return;
-  if(inp.value.trim()){ globalSearch(); return; }
-  const res = document.getElementById('search-results');
-  if(!res || !DB.loaded) return;
-  if(res.innerHTML) return; // ya tiene resultados, no limpiar
-  res.innerHTML=`<div style="text-align:center;padding:32px;color:var(--text3)">
-    <div style="font-size:36px;margin-bottom:12px">🔍</div>
-    <div style="font-size:14px;font-weight:600">Escribí al menos 2 caracteres para buscar</div>
-    <div style="font-size:12px;margin-top:6px;color:var(--text3)">Podés buscar por nombre, ID, RUT, email, teléfono, dirección, Nº factura o servicio</div>
-  </div>`;
-}
-
 function searchFicha(){
   const q=document.getElementById('ficha-search').value.toLowerCase().trim();
   const sug=document.getElementById('ficha-suggestions');
-  if(!q||q.length<2){
-    if(!q) _initFichasTab(); // mostrar top clientes cuando se borra el texto
-    return;
-  }
+  if(!q||q.length<2){sug.innerHTML='';return;}
   if(!DB.loaded){sug.innerHTML='<div class="search-empty">Cargando...</div>';return;}
   const m=DB.clients.filter(c=>c.nombre.toLowerCase().includes(q)||c.id.includes(q)).slice(0,8);
   if(!m.length){sug.innerHTML='<div class="search-empty">Sin resultados para "'+q+'"</div>';return;}
@@ -5158,11 +5101,7 @@ function loadFichaInteractive(clientId){
   if(dt){ const n=new Date(Date.now()+3600000); dt.value=n.toISOString().slice(0,16); }
 }
 function renderEjecutivos(){
-  if(!DB.loaded){
-    const g=document.getElementById('exec-grid');
-    if(g) g.innerHTML='<div class="card" style="grid-column:1/-1;text-align:center;padding:32px;color:var(--text3)">Cargando datos de ejecutivos...</div>';
-    return;
-  }
+  if(!DB.loaded)return;
   const em={};
   DB.invoices.forEach(i=>{if(i.ejecutivo&&i.ejecutivo!=='N/A'){if(!em[i.ejecutivo])em[i.ejecutivo]={r:0,c:new Set(),n:0};em[i.ejecutivo].r+=i.monto;em[i.ejecutivo].c.add(i.cid);em[i.ejecutivo].n++;}});
   const ea=Object.entries(em).sort((a,b)=>b[1].r-a[1].r);
@@ -5319,11 +5258,7 @@ const UY_DEPTS = {
 const DEPT_ALIASES = {'RIO  NEGRO':'RIO NEGRO','Colonia':'COLONIA','Canelones':'CANELONES','Montevideo':'MONTEVIDEO','Rivera':'RIVERA','Tacuarembo':'TACUAREMBO','Monteviceo':'MONTEVIDEO','San Jose':'SAN JOSE','Durazno':'DURAZNO','Florida':'FLORIDA','PAYSANDU':'PAYSANDU','TACUAREMBO':'TACUAREMBO'};
 
 function renderDepartamentos(){
-  if(!DB.loaded){
-    const el=document.getElementById('dept-kpis');
-    if(el) el.innerHTML='<div style="grid-column:1/-1;padding:16px;color:var(--text3);font-size:13px">Cargando datos...</div>';
-    return;
-  }
+  if(!DB.loaded)return;
   const dm={};
   DB.invoices.forEach(i=>{
     let d=(DEPT_ALIASES[i.dept]||i.dept||'').toUpperCase().trim();
@@ -13636,22 +13571,7 @@ function renderPipeline(){
     {key:'presupuesto',label:'📤 Pres. enviado',color:'#7c3aed',bg:'#ede9fe'},
   ];
   if(!all.length){
-    el.innerHTML=`<div style="background:linear-gradient(135deg,#4c1d95,#7c3aed);border-radius:var(--radius);padding:20px 26px;margin-bottom:20px;color:white;box-shadow:0 6px 24px rgba(124,58,237,.22)">
-      <div style="font-size:20px;font-weight:900">📋 Pipeline de Presupuestos</div>
-      <div style="font-size:12px;opacity:.7;margin-top:4px">Gestión comercial · SEDEL</div>
-    </div>
-    <div class="card" style="text-align:center;padding:56px 32px">
-      <div style="font-size:56px;margin-bottom:16px">📋</div>
-      <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:8px">Sin presupuestos registrados</div>
-      <div style="font-size:13px;color:var(--text2);max-width:420px;margin:0 auto;line-height:1.6">
-        Los presupuestos se crean desde la <strong>Ficha de cliente</strong> usando el botón <strong>+ Presupuesto</strong>,
-        o se generan automáticamente cuando una Orden de Servicio llega a etapa <strong>"Presupuesto Enviado"</strong>.
-      </div>
-      <button onclick="goTab('fichas',document.querySelector('.nav-item[onclick*=fichas]'),'')"
-        style="margin-top:20px;padding:10px 24px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(124,58,237,.3)">
-        Ir a Fichas de Cliente →
-      </button>
-    </div>`;
+    el.innerHTML='<div class="card" style="text-align:center;padding:48px"><div style="font-size:48px;margin-bottom:12px">📋</div><p>Sin presupuestos registrados</p></div>';
     return;
   }
   const byEstado={en_proceso:[],aprobado:[],rechazado:[],en_espera:[]};
@@ -19468,27 +19388,6 @@ function _enterCRM(userObj){
   try{ if(typeof checkBackupWarning  === 'function') checkBackupWarning();  }catch(e){}
   try{ if(typeof checkLocalStorageQuota === 'function') checkLocalStorageQuota(); }catch(e){}
   try{ if(typeof checkContractAlerts === 'function') checkContractAlerts(); }catch(e){}
-  // Limpiar datos de muestra del Pipeline (una sola vez por browser)
-  try{
-    if(!localStorage.getItem('SEDEL_PIPELINE_DEMO_CLEANED')){
-      let cleaned = 0;
-      for(let i=0;i<localStorage.length;i++){
-        const k = localStorage.key(i);
-        if(k && k.startsWith('sedel_presup_')){
-          try{
-            const arr = JSON.parse(localStorage.getItem(k)||'[]');
-            const filtered = arr.filter(p => !/^PRES-2026-00[1-9]$/.test(p.id||''));
-            if(filtered.length !== arr.length){
-              localStorage.setItem(k, JSON.stringify(filtered));
-              cleaned += (arr.length - filtered.length);
-            }
-          }catch(_){}
-        }
-      }
-      localStorage.setItem('SEDEL_PIPELINE_DEMO_CLEANED','1');
-      if(cleaned>0) console.log('[CRM] Pipeline demo cleanup: eliminados '+cleaned+' presupuestos de muestra');
-    }
-  }catch(e){ console.warn('Pipeline demo cleanup error:',e); }
   // Iniciar sincronización Google Sheets si está configurada
   try{ if(typeof gsStartSync === 'function') gsStartSync(); }catch(e){ console.error('gsStartSync error:',e); }
   // Auto-update: verificar si hay nueva versión en el servidor
@@ -19680,8 +19579,7 @@ function _wrapGoTabForFilter(userObj){
 function _filterForEjecutivo(userObj){
   if(!userObj||userObj.role!=='ejecutivo') return;
   if(typeof DB==='undefined') return;
-  // Capturar datos completos; refrescar si llegaron más datos desde la última vez
-  if(DB.clients && DB.clients.length && (!DB._fullClients || DB.clients.length > DB._fullClients.length)){
+  if(!DB._fullClients && DB.clients && DB.clients.length){
     DB._fullClients  = [...DB.clients];
     DB._fullInvoices = [...(DB.invoices||[])];
   }
