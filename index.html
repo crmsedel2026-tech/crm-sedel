@@ -16188,6 +16188,19 @@ async function gsPullAll(){
     const json = await _gsJsonp(GS_CFG.url+'?a=pull_snapshot&k='+GS_CFG.key+'&t='+Date.now());
     if(!json.ok||!json.data) throw new Error('Respuesta inválida');
 
+    // Helper para validar datos comprimidos antes de aceptarlos del GAS
+    const _gsValidate = (raw, key) => {
+      // Para claves críticas de datos masivos, rechazar si descomprime vacío
+      const criticalKeys = ['sedel_v2_cli','sedel_v2_fac','sedel_v2_cob'];
+      if(!criticalKeys.includes(key)) return true;
+      try{
+        const bin=atob(raw); const bytes=new Uint8Array(bin.length);
+        for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+        const parsed=JSON.parse(pako.inflate(bytes,{to:'string'}));
+        return Array.isArray(parsed) && parsed.length > 0;
+      }catch{ return false; }
+    };
+
     const ts = _gsSyncTS();
     let updated = 0;
     for(const [key,meta] of Object.entries(json.data)){
@@ -16195,6 +16208,11 @@ async function gsPullAll(){
       const remoteMs = new Date(meta.updated_at).getTime();
       const localMs  = ts[key] ? new Date(ts[key]).getTime() : 0;
       if(remoteMs > localMs){
+        // Validar antes de escribir: no aceptar datos vacíos para claves críticas
+        if(!_gsValidate(meta.value, key)){
+          console.warn('[GS] Ignorando snapshot vacío para:', key);
+          continue;
+        }
         localStorage.setItem(key, meta.value);
         _gsSetTS(key, meta.updated_at);
         updated++;
