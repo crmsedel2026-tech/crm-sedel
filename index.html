@@ -3047,6 +3047,7 @@ select.filter-input{cursor:pointer}
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <span id="admin-last-sync" style="font-size:11px;color:#94a3b8">Sin sincronizar</span>
           <button onclick="adminRefreshLive()" style="padding:9px 18px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">🔄 Actualizar ahora</button>
+          <button onclick="abrirModalPublicar()" style="padding:9px 18px;background:linear-gradient(135deg,#1a3a5c,#2563a8);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">🚀 Publicar CRM</button>
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#64748b;cursor:pointer">
             <input type="checkbox" id="admin-auto-refresh" onchange="toggleAdminAutoRefresh()"> Auto (30s)
           </label>
@@ -15363,6 +15364,46 @@ let cotLineas=[],cotClienteId=null; // compat stubs — ya no se usan
 </div>
 
 <!-- MODAL: GOOGLE SHEETS SYNC CONFIG -->
+<!-- Modal Publicar CRM -->
+<div id="publicar-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:18px;padding:30px;width:460px;max-width:95vw;box-shadow:0 24px 70px rgba(0,0,0,.3);position:relative">
+    <button onclick="document.getElementById('publicar-modal').style.display='none'" style="position:absolute;top:14px;right:14px;background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8">✕</button>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+      <div style="width:46px;height:46px;background:linear-gradient(135deg,#1a3a5c,#2563a8);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px">🚀</div>
+      <div>
+        <h3 style="font-size:18px;font-weight:800;color:#0f172a;margin:0">Publicar actualización</h3>
+        <p style="font-size:12px;color:#64748b;margin:2px 0 0">CRM SEDEL 2026 · GitHub Pages</p>
+      </div>
+    </div>
+    <div style="background:#f8fafc;border-radius:10px;padding:14px 16px;margin-bottom:18px;border:1px solid #e2e8f0">
+      <p style="font-size:11px;color:#64748b;margin:0 0 4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Última publicación</p>
+      <p id="pub-last-date" style="font-size:14px;font-weight:700;color:#0f172a;margin:0">Consultando...</p>
+      <p id="pub-last-msg" style="font-size:11px;color:#64748b;margin:4px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></p>
+    </div>
+    <div style="background:#eff6ff;border-radius:10px;padding:14px 16px;margin-bottom:18px;border:1px solid #bfdbfe">
+      <p style="font-size:12px;font-weight:700;color:#1e40af;margin:0 0 10px">📋 Para publicar una actualización:</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:#1e3a5f">
+          <span style="width:22px;height:22px;background:#2563a8;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">1</span>
+          Pedile los cambios a Claude (acá mismo)
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:#1e3a5f">
+          <span style="width:22px;height:22px;background:#2563a8;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">2</span>
+          Doble clic en <strong>"Publicar CRM SEDEL"</strong> del escritorio
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:#1e3a5f">
+          <span style="width:22px;height:22px;background:#2563a8;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">3</span>
+          En 1-2 minutos todos tienen la nueva versión ✅
+        </div>
+      </div>
+    </div>
+    <div style="background:#f0fdf4;border-radius:10px;padding:12px 16px;margin-bottom:18px;border:1px solid #bbf7d0">
+      <p style="font-size:12px;color:#15803d;margin:0">🔒 <strong>Los datos nunca se pierden.</strong> Clientes, facturas y OS son independientes del código del CRM.</p>
+    </div>
+    <button onclick="navigator.clipboard.writeText('C:\\\\crm-sedel\\\\PUBLICAR_ACTUALIZACION.bat').then(()=>{ showToast('Ruta copiada al portapapeles'); })" style="width:100%;padding:11px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;color:#475569">📋 Copiar ruta del acceso directo</button>
+  </div>
+</div>
+
 <div id="gs-config-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center">
   <div style="background:white;border-radius:16px;padding:28px 28px 22px;width:500px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.25);position:relative">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -19963,6 +20004,28 @@ async function adminRefreshLive() {
   } catch(e) {
     document.getElementById('admin-last-sync').textContent = '⚠️ Sin conexión';
     if (typeof toast==='function') toast('⚠️ No se pudo conectar al servidor GAS');
+  }
+}
+
+async function abrirModalPublicar() {
+  const modal = document.getElementById('publicar-modal');
+  modal.style.display = 'flex';
+  const dateEl = document.getElementById('pub-last-date');
+  const msgEl  = document.getElementById('pub-last-msg');
+  dateEl.textContent = 'Consultando GitHub...';
+  msgEl.textContent  = '';
+  try {
+    const r    = await fetch('https://api.github.com/repos/crmsedel2026-tech/crm-sedel/commits?per_page=1');
+    const data = await r.json();
+    if (Array.isArray(data) && data[0]) {
+      const d = new Date(data[0].commit.author.date);
+      dateEl.textContent = d.toLocaleString('es-UY', { dateStyle:'medium', timeStyle:'short' });
+      msgEl.textContent  = '✔ ' + data[0].commit.message;
+    } else {
+      dateEl.textContent = 'No disponible';
+    }
+  } catch(e) {
+    dateEl.textContent = 'Sin conexión a GitHub';
   }
 }
 
